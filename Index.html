@@ -6,74 +6,138 @@
 <title>Center Admissions</title>
 <style>
 :root{font-family:system-ui,sans-serif;color:#152638;background:#eef4f5}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top right,#c7e8e0,transparent 55%)}main{width:min(950px,100% - 32px);margin:auto;padding:clamp(32px,9vw,110px) 0}.panel{background:white;border:1px solid #d8e7e7;border-radius:24px;padding:clamp(24px,5vw,52px);box-shadow:0 18px 65px #113f4512}#lookup{max-width:610px;margin:auto}h1{margin:0 0 12px;font-size:clamp(32px,6vw,54px);letter-spacing:-.05em;line-height:1.04}p{color:#48606a;line-height:1.5}form{margin-top:30px}label{display:block;font-weight:700;margin-bottom:8px}.controls,.heading{display:flex;gap:12px;flex-wrap:wrap;align-items:center}.heading{justify-content:space-between}input,button{font:inherit;border-radius:10px;padding:12px 16px}input{flex:1;min-width:0;border:1px solid #a5bbbd}button{border:1px solid transparent;background:#006459;color:white;font-weight:700;cursor:pointer}button:disabled{opacity:.7;cursor:wait}button.secondary{color:#005b52;background:#e5f4ef}:focus-visible{outline:3px solid #127a9a;outline-offset:3px}#status:empty{display:none}.sessions{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:14px;margin-top:26px}article{padding:20px;border-radius:15px;background:#f4f7f8;border:1px solid #dce7e8}article.active{background:#e8f7f2;border-color:#acd8cc}h2{font-size:1.15rem;margin:0}dl{margin:16px 0 0}dl div{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:10px 0;border-top:1px solid #bfded6}dt{font-size:.85rem;color:#284a4c}dd{margin:0;font-weight:800}@media(max-width:400px){.controls>*{width:100%;flex:auto}}
-</style>
-</head>
-<body><main>
-<section class="panel" id="lookup" aria-labelledby="lookup-title">
-<h1 id="lookup-title">Center Admissions</h1>
-<p>Enter your center code to view admissions by session.</p>
+
+.fields{display:grid;gap:14px}.field{padding:12px;border:1px solid #dce7e8;border-radius:10px}
+.field input{width:100%}.field .controls{margin-top:8px}.field button{padding:7px 12px}
+.sessions{align-items:start}.action{margin-top:20px}.field p{margin:6px 0}
+</style></head><body><main>
+<section class="panel" id="lookup">
+<h1>Center Admissions</h1><p>Enter a center code to open its details.</p>
 <form id="form"><label for="code">Center code</label><div class="controls">
-<input id="code" required maxlength="64" autocomplete="off" spellcheck="false" placeholder="Enter your center code" aria-describedby="status">
-<button id="submit" type="submit">View sessions</button></div><p id="status" role="status"></p></form>
+<input id="code" required maxlength="64" autocomplete="off"><button id="submit">View center</button>
+</div><p id="lookup-status" role="status"></p></form>
 </section>
-<section class="panel" id="results" aria-labelledby="results-title" hidden>
-<div class="heading"><h1 id="results-title" tabindex="-1">Admission sessions</h1><button class="secondary" id="back" type="button">Change center</button></div>
-<p>Center code <strong id="result-code"></strong></p>
-<div class="sessions">
-<article id="january-card"><h2>January 2026</h2><p id="january-empty">No data available</p><dl id="january-values" hidden>
-<div><dt>SVGU admissions with enrollment</dt><dd id="january-svgu"></dd></div>
-<div><dt>VGU admissions with enrollment</dt><dd id="january-vgu"></dd></div>
-<div><dt>Total center admissions</dt><dd id="january-total"></dd></div>
-</dl></article>
-<article id="july-card"><h2>July 2026</h2><p id="july-empty">No data available</p><dl id="july-values" hidden>
-<div><dt>SVGU admissions with enrollment</dt><dd id="july-svgu"></dd></div>
-<div><dt>VGU admissions with enrollment</dt><dd id="july-vgu"></dd></div>
-<div><dt>Total center admissions</dt><dd id="july-total"></dd></div>
-</dl></article>
-<article><h2>January 2027</h2><p>No data available</p></article>
-</div></section></main>
-<script>
+<section class="panel" id="center" hidden>
+<div class="heading"><h1 id="center-heading" tabindex="-1">Center details</h1><button class="secondary" id="change">Change center</button></div>
+<p>Center code <strong id="center-code"></strong></p>
+<p id="center-status" role="status"></p><div class="fields" id="profile"></div>
+<button class="action" id="show-admissions">View admission sessions</button>
+</section>
+<section class="panel" id="admissions" hidden>
+<div class="heading"><h1 id="admissions-heading" tabindex="-1">Admission sessions</h1><button class="secondary" id="show-center">Center details</button></div>
+<p id="admissions-status" role="status"></p><div class="sessions" id="sessions"></div>
+</section>
+</main><script>
 const byId = id => document.getElementById(id);
-const input = byId('code');
-const status = byId('status');
-const submit = byId('submit');
-function finish() {
-  submit.disabled = false;
-  submit.textContent = 'View sessions';
+const profileLabels = {company:'Company name', owner:'Owner', mobile:'Mobile number', email:'Email ID', address:'Complete address', vguId:'User ID for VGU', sgvuId:'User ID for SGVU', activeBy:'Active by'};
+const countLabels = {svgu:'SVGU admissions with enrollment', vgu:'VGU admissions with enrollment', total:'Total center admissions'};
+const sessions = {january:'January 2026', july:'July 2026', nextJanuary:'January 2027'};
+let center = null;
+let busy = false;
+
+function show(page) {
+  for (const name of ['lookup','center','admissions']) byId(name).hidden = name !== page;
+  byId(page === 'lookup' ? 'code' : page + '-heading').focus();
 }
+
+function element(tag, text) {
+  const node = document.createElement(tag);
+  if (text) node.textContent = text;
+  return node;
+}
+
+function drawField(group, key, labelText) {
+  const state = center.groups[group][key];
+  const container = element('div');
+  container.className = 'field';
+  const label = element('label', labelText);
+  const input = element('input');
+  input.id = group + '-' + key;
+  label.htmlFor = input.id;
+  input.value = state.value;
+  input.readOnly = state.calculated;
+  input.maxLength = group === 'profile' ? 1000 : 12;
+  if (group !== 'profile') input.inputMode = 'numeric';
+  const controls = element('div');
+  controls.className = 'controls';
+  for (const [operation, title, enabled] of [
+    ['save', 'Save', !state.calculated],
+    ['delete', 'Delete', !state.calculated && Boolean(state.value)],
+    ['restore', 'Restore', state.canRestore],
+  ]) {
+    const button = element('button', title);
+    button.type = 'button';
+    button.disabled = !enabled;
+    button.addEventListener('click', () => update(group, key, operation, input.value, state.value));
+    controls.append(button);
+  }
+  container.append(label, input, controls);
+  return container;
+}
+
+function drawGroup(target, group, labels) {
+  for (const [key, label] of Object.entries(labels)) target.append(drawField(group, key, label));
+}
+
+function render() {
+  byId('center-code').textContent = center.code;
+  const profile = byId('profile');
+  profile.replaceChildren();
+  drawGroup(profile, 'profile', profileLabels);
+  const list = byId('sessions');
+  list.replaceChildren();
+  for (const [key, name] of Object.entries(sessions)) {
+    const card = element('article');
+    card.append(element('h2', name));
+    if (Object.values(center.groups[key]).every(field => !field.value)) card.append(element('p', 'No data available'));
+    drawGroup(card, key, countLabels);
+    list.append(card);
+  }
+}
+
+function update(group, key, operation, value, expected) {
+  if (busy) return;
+  const status = byId(group === 'profile' ? 'center-status' : 'admissions-status');
+  if (operation === 'delete' && !window.confirm('Delete this value? You can restore it later.')) return;
+  busy = true;
+  status.textContent = 'Saving…';
+  google.script.run.withSuccessHandler(result => {
+    busy = false;
+    center = result;
+    render();
+    status.textContent = {save:'Saved.', delete:'Deleted. You can restore this value.', restore:'Restored.'}[operation];
+    byId(group + '-' + key).focus();
+  }).withFailureHandler(error => {
+    busy = false;
+    status.textContent = error.message || 'Could not save the change. Try again.';
+  }).updateCenter(center.code, group, key, operation, value, expected);
+}
+
 byId('form').addEventListener('submit', event => {
   event.preventDefault();
-  const code = input.value.trim();
-  if (!code) { status.textContent = 'Enter a center code.'; input.focus(); return; }
-  if (!window.google?.script?.run) { status.textContent = 'Open the deployed Google Apps Script web app to look up a center.'; return; }
-  status.textContent = '';
-  submit.disabled = true;
-  submit.textContent = 'Looking up…';
+  if (busy) return;
+  const status = byId('lookup-status');
+  const code = byId('code').value.trim();
+  if (!code) { status.textContent = 'Enter a center code.'; return; }
+  busy = true;
+  byId('submit').disabled = true;
+  status.textContent = 'Looking up…';
+  const done = () => { busy = false; byId('submit').disabled = false; };
   google.script.run.withSuccessHandler(result => {
-    finish();
-    if (!result) { status.textContent = 'Center code not found. Check the code and try again.'; input.focus(); return; }
-    byId('result-code').textContent = result.code;
-    for (const session of ['january', 'july']) {
-      const totals = result[session];
-      byId(session + '-empty').hidden = Boolean(totals);
-      byId(session + '-values').hidden = !totals;
-      byId(session + '-card').classList.toggle('active', Boolean(totals));
-      for (const key of ['svgu', 'vgu', 'total']) {
-        byId(session + '-' + key).textContent = totals?.[key] || '—';
-      }
-    }
-    byId('lookup').hidden = true;
-    byId('results').hidden = false;
-    byId('results-title').focus();
+    done();
+    if (!result) { status.textContent = 'Center code not found.'; return; }
+    status.textContent = '';
+    byId('center-status').textContent = '';
+    byId('admissions-status').textContent = '';
+    center = result;
+    render();
+    show('center');
   }).withFailureHandler(() => {
-    finish();
-    status.textContent = 'Admissions data is temporarily unavailable. Try again.';
+    done();
+    status.textContent = 'Center data is temporarily unavailable. Try again.';
   }).getAdmissions(code);
 });
-byId('back').addEventListener('click', () => {
-  byId('results').hidden = true;
-  byId('lookup').hidden = false;
-  input.focus();
-  input.select();
-});
+byId('change').addEventListener('click', () => { if (!busy) { center = null; show('lookup'); } });
+byId('show-center').addEventListener('click', () => show('center'));
+byId('show-admissions').addEventListener('click', () => show('admissions'));
 </script></body></html>
