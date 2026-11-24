@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<base target="_top">
+<title>Center Admissions</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#152638;background:#eef4f5}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top right,#c7e8e0,transparent 55%)}main{width:min(950px,100% - 32px);margin:auto;padding:clamp(32px,9vw,110px) 0}.panel{background:white;border:1px solid #d8e7e7;border-radius:24px;padding:clamp(24px,5vw,52px);box-shadow:0 18px 65px #113f4512}#lookup{max-width:610px;margin:auto}h1{margin:0 0 12px;font-size:clamp(32px,6vw,54px);letter-spacing:-.05em;line-height:1.04}p{color:#48606a;line-height:1.5}form{margin-top:30px}label{display:block;font-weight:700;margin-bottom:8px}.controls,.heading{display:flex;gap:12px;flex-wrap:wrap;align-items:center}.heading{justify-content:space-between}input,button{font:inherit;border-radius:10px;padding:12px 16px}input{flex:1;min-width:0;border:1px solid #a5bbbd}button{border:1px solid transparent;background:#006459;color:white;font-weight:700;cursor:pointer}button:disabled{opacity:.7;cursor:wait}button.secondary{color:#005b52;background:#e5f4ef}:focus-visible{outline:3px solid #127a9a;outline-offset:3px}#status:empty{display:none}.sessions{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:14px;margin-top:26px}article{padding:20px;border-radius:15px;background:#f4f7f8;border:1px solid #dce7e8}article.active{background:#e8f7f2;border-color:#acd8cc}h2{font-size:1.15rem;margin:0}dl{margin:16px 0 0}dl div{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:10px 0;border-top:1px solid #bfded6}dt{font-size:.85rem;color:#284a4c}dd{margin:0;font-weight:800}@media(max-width:400px){.controls>*{width:100%;flex:auto}}
+</style>
+</head>
+<body><main>
+<section class="panel" id="lookup" aria-labelledby="lookup-title">
+<h1 id="lookup-title">Center Admissions</h1>
+<p>Enter your center code to view admissions by session.</p>
+<form id="form"><label for="code">Center code</label><div class="controls">
+<input id="code" required maxlength="64" autocomplete="off" spellcheck="false" placeholder="Enter your center code" aria-describedby="status">
+<button id="submit" type="submit">View sessions</button></div><p id="status" role="status"></p></form>
+</section>
+<section class="panel" id="results" aria-labelledby="results-title" hidden>
+<div class="heading"><h1 id="results-title" tabindex="-1">Admission sessions</h1><button class="secondary" id="back" type="button">Change center</button></div>
+<p>Center code <strong id="result-code"></strong></p>
+<div class="sessions">
+<article><h2>January 2026</h2><p>No data available</p></article>
+<article class="active"><h2>July 2026</h2><dl>
+<div><dt>SVGU admissions with enrollment</dt><dd id="svgu"></dd></div>
+<div><dt>VGU admissions with enrollment</dt><dd id="vgu"></dd></div>
+<div><dt>Total center admissions</dt><dd id="total"></dd></div>
+</dl></article>
+<article><h2>January 2027</h2><p>No data available</p></article>
+</div></section></main>
+<script>
+const byId = id => document.getElementById(id);
+const input = byId('code');
+const status = byId('status');
+const submit = byId('submit');
+function finish() {
+  submit.disabled = false;
+  submit.textContent = 'View sessions';
+}
+byId('form').addEventListener('submit', event => {
+  event.preventDefault();
+  const code = input.value.trim();
+  if (!code) { status.textContent = 'Enter a center code.'; input.focus(); return; }
+  if (!window.google?.script?.run) { status.textContent = 'Open the deployed Google Apps Script web app to look up a center.'; return; }
+  status.textContent = '';
+  submit.disabled = true;
+  submit.textContent = 'Looking up…';
+  google.script.run.withSuccessHandler(result => {
+    finish();
+    if (!result) { status.textContent = 'Center code not found. Check the code and try again.'; input.focus(); return; }
+    byId('result-code').textContent = result.code;
+    for (const key of ['svgu', 'vgu', 'total']) byId(key).textContent = result[key] || '—';
+    byId('lookup').hidden = true;
+    byId('results').hidden = false;
+    byId('results-title').focus();
+  }).withFailureHandler(() => {
+    finish();
+    status.textContent = 'Admissions data is temporarily unavailable. Try again.';
+  }).getAdmissions(code);
+});
+byId('back').addEventListener('click', () => {
+  byId('results').hidden = true;
+  byId('lookup').hidden = false;
+  input.focus();
+  input.select();
+});
+</script></body></html>
