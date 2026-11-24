@@ -1,6 +1,6 @@
 # Center Admissions
 
-Enter a center code to see the July 2026 SVGU, VGU, and total admissions from Google Sheets. January 2026 and January 2027 display no data.
+Enter a center code to see the January and July 2026 SVGU, VGU, and total admissions from Google Sheets. January 2027 displays no data.
 
 ## Deploy
 
