@@ -20,11 +20,15 @@
 <div class="heading"><h1 id="results-title" tabindex="-1">Admission sessions</h1><button class="secondary" id="back" type="button">Change center</button></div>
 <p>Center code <strong id="result-code"></strong></p>
 <div class="sessions">
-<article><h2>January 2026</h2><p>No data available</p></article>
-<article class="active"><h2>July 2026</h2><dl>
-<div><dt>SVGU admissions with enrollment</dt><dd id="svgu"></dd></div>
-<div><dt>VGU admissions with enrollment</dt><dd id="vgu"></dd></div>
-<div><dt>Total center admissions</dt><dd id="total"></dd></div>
+<article id="january-card"><h2>January 2026</h2><p id="january-empty">No data available</p><dl id="january-values" hidden>
+<div><dt>SVGU admissions with enrollment</dt><dd id="january-svgu"></dd></div>
+<div><dt>VGU admissions with enrollment</dt><dd id="january-vgu"></dd></div>
+<div><dt>Total center admissions</dt><dd id="january-total"></dd></div>
+</dl></article>
+<article id="july-card"><h2>July 2026</h2><p id="july-empty">No data available</p><dl id="july-values" hidden>
+<div><dt>SVGU admissions with enrollment</dt><dd id="july-svgu"></dd></div>
+<div><dt>VGU admissions with enrollment</dt><dd id="july-vgu"></dd></div>
+<div><dt>Total center admissions</dt><dd id="july-total"></dd></div>
 </dl></article>
 <article><h2>January 2027</h2><p>No data available</p></article>
 </div></section></main>
@@ -49,7 +53,15 @@ byId('form').addEventListener('submit', event => {
     finish();
     if (!result) { status.textContent = 'Center code not found. Check the code and try again.'; input.focus(); return; }
     byId('result-code').textContent = result.code;
-    for (const key of ['svgu', 'vgu', 'total']) byId(key).textContent = result[key] || '—';
+    for (const session of ['january', 'july']) {
+      const totals = result[session];
+      byId(session + '-empty').hidden = Boolean(totals);
+      byId(session + '-values').hidden = !totals;
+      byId(session + '-card').classList.toggle('active', Boolean(totals));
+      for (const key of ['svgu', 'vgu', 'total']) {
+        byId(session + '-' + key).textContent = totals?.[key] || '—';
+      }
+    }
     byId('lookup').hidden = true;
     byId('results').hidden = false;
     byId('results-title').focus();
